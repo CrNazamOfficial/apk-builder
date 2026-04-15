@@ -1,0 +1,52 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        required: true
+      package_name:
+        required: true
+      source_type:
+        required: true
+      webview_url:
+        required: false
+      html_content:
+        required: false
+      splash_color:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Inject Config
+        run: |
+          sed -i "s/__APP_NAME__/${{ github.event.inputs.app_name }}/g" app/src/main/AndroidManifest.xml
+          sed -i "s/__APP_NAME__/${{ github.event.inputs.app_name }}/g" app/src/main/res/values/strings.xml
+          sed -i "s/com.zam.apkbuilder/${{ github.event.inputs.package_name }}/g" app/build.gradle
+          sed -i "s/com.zam.apkbuilder/${{ github.event.inputs.package_name }}/g" app/src/main/java/com/zam/apkbuilder/MainActivity.java
+          sed -i "s/com.zam.apkbuilder/${{ github.event.inputs.package_name }}/g" app/src/main/java/com/zam/apkbuilder/SplashActivity.java
+          sed -i "s/__SPLASH_COLOR__/${{ github.event.inputs.splash_color }}/g" app/src/main/java/com/zam/apkbuilder/SplashActivity.java
+          sed -i "s/__SOURCE_TYPE__/${{ github.event.inputs.source_type }}/g" app/src/main/java/com/zam/apkbuilder/MainActivity.java
+          sed -i "s|__WEBVIEW_URL__|${{ github.event.inputs.webview_url }}|g" app/src/main/java/com/zam/apkbuilder/MainActivity.java
+          sed -i "s|__HTML_CONTENT__|${{ github.event.inputs.html_content }}|g" app/src/main/java/com/zam/apkbuilder/MainActivity.java
+
+      - name: Build Debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ github.event.inputs.app_name }}-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
